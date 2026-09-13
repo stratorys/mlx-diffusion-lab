@@ -1,0 +1,12 @@
+{
+  "profile": "plain-4b",
+  "width": 768,
+  "height": 1024,
+  "common_prompt": "cinematic photograph, shallow depth of field",
+  "seeds": [1, 2, 3],
+  "prompts": [
+    { "id": "harbour", "prompt": "a stone harbour at first light, fishing boats" },
+    { "id": "forest", "prompt": "a mossy forest path after rain" },
+    { "id": "market", "prompt": "a night market, warm lanterns", "seeds": [7] }
+  ]
+}

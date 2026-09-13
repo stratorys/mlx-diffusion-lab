@@ -1,0 +1,12 @@
+{
+  "profile": "plain-4b",
+  "width": 768,
+  "height": 1024,
+  "common_prompt": "a stone harbour at first light, fishing boats",
+  "seeds": [1, 2, 3, 4],
+  "prompts": [
+    { "id": "a-wide", "prompt": "wide shot, the whole harbour in frame" },
+    { "id": "b-mid", "prompt": "one boat filling half the frame" },
+    { "id": "c-close", "prompt": "close on a mooring cleat and wet rope" }
+  ]
+}
