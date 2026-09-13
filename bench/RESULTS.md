@@ -93,9 +93,54 @@ uv run python bench/memory.py --profile <profile> --edit
 
 ## Results
 
-Nothing has been committed here yet.
+### Apple M4 Pro, 24 GB, macOS 26.6.2 — 2026-09-13
 
-Add a section per machine, in this shape:
+mflux 0.19.1, MLX 0.32.2, `mlx-community/flux2-klein-4b-4bit`, one local rank-64
+adapter at scale 1.0, `bake = false`, 4 steps, guidance 1.0. Median of 3 runs after
+1 warmup. Source: `bench/results/tokens.csv`.
+
+| Size | Latent tokens | s/step | s/image | ms per 1000 tokens |
+|---|---|---|---|---|
+| 576x576 | 1 296 | 3.113 | 12.45 | 2.40 |
+| 576x768 | 1 728 | 3.991 | 15.96 | 2.31 |
+| 768x1024 | 3 072 | 5.897 | 23.59 | 1.92 |
+| 832x1216 | 3 952 | 7.371 | 29.48 | 1.87 |
+
+**Cost is linear in latent tokens, over a large fixed per-step overhead.**
+
+```
+t_step  ≈  1.17 s  +  1.56 s per 1000 latent tokens        R² = 0.9975
+```
+
+Maximum residual across the four points is 123 ms. Adding a quadratic term makes the
+fit no better — its coefficient comes out slightly negative and contributes under 1%
+at the largest frame — so there is no attention blow-up in this range. Whatever the
+theory says about quadratic attention, it is not what this stack pays for at these
+sizes.
+
+The fixed 1.17 s is the interesting half. It is paid once per step whatever the frame
+holds:
+
+| Size | Share of each step that is fixed overhead |
+|---|---|
+| 576x576 | 37.5% |
+| 576x768 | 29.2% |
+| 768x1024 | 19.8% |
+| 832x1216 | 15.8% |
+
+**What follows from that, and it is not the obvious thing.** Cropping tighter to put
+more pixels on the subject is still right, but not because it is cheap: going from
+768x1024 to 576x576 divides the token count by 2.37 and the time by only 1.90. Small
+frames are the *least* efficient way to spend a step, because the overhead does not
+shrink with them. Per-token throughput improves monotonically with frame size here —
+2.40 ms per 1000 tokens at the smallest, 1.87 at the largest.
+
+Useful side effect: the model predicts. Planning a sweep is
+`images x steps x (1.17 + 0.00156 x tokens)` seconds — 40 images at 768x1024 and
+8 steps is about 31 minutes, and that estimate was accurate to a few percent when
+checked against a fourth frame size the fit had not seen.
+
+### Add further sections in this shape:
 
 ```markdown
 ### <machine>, <date>
