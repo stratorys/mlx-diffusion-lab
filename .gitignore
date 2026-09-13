@@ -1,0 +1,18 @@
+# Never publishable: model weights, adapters and anything generated from them.
+*.safetensors
+*.gguf
+*.ckpt
+weights/
+runs/
+bench/results/
+config/*.local.toml
+sweeps/*.local.json
+
+# Tooling
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+.claude/
+.DS_Store
