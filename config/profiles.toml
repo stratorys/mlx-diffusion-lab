@@ -1,0 +1,90 @@
+# The catalogue is the only file in this repository that may name a subject.
+# Nothing under src/ knows what a subject is: an engine is a checkpoint plus its text
+# encoder and its limits, and a profile binds an engine to an ordered adapter stack.
+# Adding a subject is an entry here, never a change to the code.
+#
+# The `subject-*` profiles below are deliberately fictional. They exist to exercise
+# and document the two config values most able to fail silently: the order of an
+# adapter stack, and the shape of a replacement text encoder. Point them at your own
+# weights, or start from `plain-4b`, which runs with nothing but a public checkpoint.
+
+# --- Engines -----------------------------------------------------------------------
+
+# The stock engine. A public, pre-quantised Q4 checkpoint and its own text encoder.
+# This is the one that runs with no local weights at all.
+[engine.klein-4b-stock]
+checkpoint = "mlx-community/flux2-klein-4b-4bit"
+config = "flux2_klein_4b"              # attribute name on mflux ModelConfig
+guidance = 1.0                         # distilled checkpoint, locked below
+guidance_locked = true
+steps = { generate = 4, edit = 8, mask = 8 }
+width = 768
+height = 1024
+
+# The same transformer with its text encoder swapped for another one, requantised to
+# Q4 at load. Swapping an encoder is the single most memory-hostile thing this system
+# does: the replacement is distributed in full precision, so it must be materialised
+# while the old one is already gone. See runners/mflux.py and bench/memory.py.
+[engine.klein-4b]
+checkpoint = "mlx-community/flux2-klein-4b-4bit"
+config = "flux2_klein_4b"
+guidance = 1.0
+guidance_locked = true
+steps = { generate = 4, edit = 8, mask = 8 }
+width = 768
+height = 1024
+encoder = { repo = "example-org/klein-4b-alt-text-encoder", subdir = "klein-4b-alt-text-encoder", quantize = 4 }
+
+[engine.klein-9b]
+checkpoint = "AITRADER/FLUX2-klein-9B-mlx-4bit"
+config = "flux2_klein_9b"
+guidance = 1.0
+guidance_locked = true
+steps = { generate = 6, edit = 8, mask = 8 }
+width = 1024
+height = 576
+# This encoder sits at the repository ROOT, unlike the 4B one above, which sits in a
+# subdirectory. An empty subdir changes the weight-loader's file pattern from
+# "<subdir>/*.safetensors" to "*.safetensors". It is not a cosmetic difference, and
+# getting it wrong loads nothing while reporting nothing.
+encoder = { repo = "example-org/klein-9b-alt-text-encoder", subdir = "", quantize = 4 }
+
+# --- Profiles ----------------------------------------------------------------------
+
+# Nothing local, nothing fictional. Use this to check the system end to end.
+[profile.plain-4b]
+engine = "klein-4b-stock"
+adapters = []
+
+# One local subject adapter. `path` resolves against IMAGEGEN_WEIGHTS and may not
+# escape it.
+[profile.subject-4b]
+engine = "klein-4b"
+adapters = [
+  { path = "subj-a-4b-rank64-step1200.safetensors", scale = 1.0 },
+]
+
+# Adapter order is preserved exactly and it matters: a general-purpose adapter is
+# applied before the subject adapter, so the subject has the last word on any weight
+# they both touch. Swap the two lines and the output changes.
+#
+# A hub adapter is given as `repo` + `file` and needs no local copy; mflux resolves
+# the `repo:file` pair itself. A local adapter is given as `path`.
+[profile.subject-9b]
+engine = "klein-9b"
+adapters = [
+  { repo = "example-org/klein-9b-general", file = "general-v2.safetensors", scale = 1.0 },
+  { path = "subj-a-9b-rank32-step1200.safetensors", scale = 1.15 },
+]
+
+# Identical to subject-4b in every way except the bake flag. It exists so the cost of
+# baking can be measured against its own baseline rather than against a guess, and so
+# the two runs cannot collide: `bake` is part of the fingerprint, so the benchmark
+# writes its own files instead of overwriting production output.
+#   uv run python bench/step_time.py --profiles subject-4b subject-4b-baked
+[profile.subject-4b-baked]
+engine = "klein-4b"
+bake = true
+adapters = [
+  { path = "subj-a-4b-rank64-step1200.safetensors", scale = 1.0 },
+]
